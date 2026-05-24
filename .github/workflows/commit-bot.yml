@@ -1,0 +1,43 @@
+name: Auto Commit Bot
+
+on:
+  schedule:
+    - cron: '0 10 */2 * *'   # Every 2 days at 10 AM UTC
+  workflow_dispatch:           # Manual trigger anytime
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_SECRET }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Set Git identity
+        run: |
+          git config user.name "PawanR-deveops"
+          git config user.email "pawanravichandranr@gmail.com"
+
+      - name: Set remote with PAT
+        env:
+          PAT_SECRET: ${{ secrets.PAT_SECRET }}
+        run: |
+          git remote set-url origin https://x-access-token:${PAT_SECRET}@github.com/PawanR-deveops/auto-commit-bot.git
+
+      - name: Run bot
+        run: node commit-bot.js
