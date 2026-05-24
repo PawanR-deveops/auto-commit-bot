@@ -1,0 +1,13 @@
+{
+  "name": "auto-commit-bot",
+  "version": "1.0.0",
+  "main": "commit-bot.js",
+  "scripts": {
+    "start": "node commit-bot.js"
+  },
+  "dependencies": {
+    "jsonfile": "^6.1.0",
+    "moment": "^2.30.1",
+    "simple-git": "^3.28.0"
+  }
+}
