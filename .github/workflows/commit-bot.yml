@@ -17,7 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_SECRET }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -32,12 +31,6 @@ jobs:
         run: |
           git config user.name "PawanR-deveops"
           git config user.email "pawanravichandranr@gmail.com"
-
-      - name: Set remote with PAT
-        env:
-          PAT_SECRET: ${{ secrets.PAT_SECRET }}
-        run: |
-          git remote set-url origin https://x-access-token:${PAT_SECRET}@github.com/PawanR-deveops/auto-commit-bot.git
 
       - name: Run bot
         run: node commit-bot.js
