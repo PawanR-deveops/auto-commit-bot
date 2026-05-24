@@ -1,10 +1,10 @@
 const jsonfile = require('jsonfile');
-const moment = require('moment');
+const moment   = require('moment');
 const simpleGit = require('simple-git');
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
-const git = simpleGit();
+const git          = simpleGit();
 const FILE_PATH    = path.join(__dirname, 'data.json');
 const TRACKER_PATH = path.join(__dirname, 'committed_dates.json');
 
@@ -18,19 +18,40 @@ if (fs.existsSync(TRACKER_PATH)) {
     committedDates = jsonfile.readFileSync(TRACKER_PATH);
 }
 
-// Find the last committed date; if none, start just before account creation
 const sortedDates = [...committedDates].sort();
-const lastDate = sortedDates.length > 0
-    ? moment(sortedDates[sortedDates.length - 1])
-    : ACCOUNT_START.clone().subtract(1, 'day');
 
-// Next commit = last date + random gap (3–16 days)
-const gap      = Math.floor(Math.random() * (MAX_GAP - MIN_GAP + 1)) + MIN_GAP;
-const nextDate = lastDate.clone().add(gap, 'days');
+// Walk the full timeline from account creation.
+// Find the first gap that is too large and return the next date to fill.
+const findNextDate = () => {
+    let cursor = ACCOUNT_START.clone();
+
+    for (const dateStr of sortedDates) {
+        const commitMoment = moment(dateStr);
+        const gapDays = commitMoment.diff(cursor, 'days');
+
+        if (gapDays > MAX_GAP) {
+            // Gap too big — need a commit between cursor and this date
+            const gap  = Math.floor(Math.random() * (MAX_GAP - MIN_GAP + 1)) + MIN_GAP;
+            const next = cursor.clone().add(gap, 'days');
+            // Make sure it doesn't land on an already committed date
+            if (!committedDates.includes(next.format('YYYY-MM-DD'))) {
+                return next;
+            }
+        }
+        // Move cursor forward to this committed date
+        cursor = commitMoment.clone();
+    }
+
+    // All existing commits are well-spaced; extend forward from the last one
+    const gap  = Math.floor(Math.random() * (MAX_GAP - MIN_GAP + 1)) + MIN_GAP;
+    return cursor.clone().add(gap, 'days');
+};
+
+const nextDate = findNextDate();
 const nextStr  = nextDate.format('YYYY-MM-DD');
 
 const commitOnDate = async (dateStr) => {
-    const nCommits = Math.floor(Math.random() * 2) + 1; // 1 or 2 commits
+    const nCommits = Math.floor(Math.random() * 2) + 1;
     for (let i = 0; i < nCommits; i++) {
         const dateTime = moment(dateStr)
             .hour(Math.floor(Math.random() * 10) + 9)
@@ -48,24 +69,22 @@ const commitOnDate = async (dateStr) => {
 };
 
 const run = async () => {
-    // Out of range — future date or before account creation
-    if (nextDate.isAfter(today) || nextDate.isBefore(ACCOUNT_START)) {
-        console.log(`Next date ${nextStr} is out of range (today: ${today.format('YYYY-MM-DD')}). Skipping.`);
+    if (nextDate.isAfter(today)) {
+        console.log(`Graph is up to date. Next date ${nextStr} is in the future.`);
+        return;
+    }
+    if (nextDate.isBefore(ACCOUNT_START)) {
+        console.log(`Skipping — date before account creation.`);
         return;
     }
 
-    if (committedDates.includes(nextStr)) {
-        console.log(`${nextStr} already committed. Skipping.`);
-        return;
-    }
-
-    console.log(`Committing ${nextStr} (gap: ${gap} days from ${lastDate.format('YYYY-MM-DD')})`);
+    console.log(`Committing ${nextStr}`);
     await commitOnDate(nextStr);
 
     await git.add(TRACKER_PATH);
     await git.commit('bot: update committed_dates tracker');
     await git.push();
-    console.log(`Done. Next run will pick ${MIN_GAP}–${MAX_GAP} days after ${nextStr}.`);
+    console.log(`Done.`);
 };
 
 run();
